@@ -943,7 +943,8 @@ if ('serviceWorker' in navigator)
           </div>
           <button class="btn-ghost" id="fix-add" style="width:100%">고정지출 추가</button>
         </div>
-        <button class="btn-ghost" id="fix-apply" style="margin-top:10px;width:100%">보고 있는 달에 반영하기</button>
+        <p class="hint">결제일이 지나면 자동으로 들어갑니다. 아래 버튼은 아직 날짜가 안 된 달을 미리 채울 때만 쓰세요.</p>
+        <button class="btn-ghost" id="fix-apply" style="margin-top:4px;width:100%">보고 있는 달에 지금 반영하기</button>
       </div>
       <div class="card">
         <h2>수입 카테고리</h2>
@@ -1165,6 +1166,12 @@ function normalizeState(){
   state.billing = state.billing || {};
   state.budgets.byCategory = state.budgets.byCategory || {};
   state.fixed = state.fixed || [];
+  /* 자동 반영 기준 — since 이후의 달만 채운다.
+     기존 항목은 지금 달부터로 잡아야 과거가 통째로 생기지 않는다 */
+  state.fixed.forEach(f=>{
+    if (!/^\d{4}-\d{2}$/.test(f.since || '')) f.since = todayStr().slice(0,7);
+    if (!Array.isArray(f.skip)) f.skip = [];
+  });
   /* 구버전 상태(문자열 배열)를 2단 트리로 승격 */
   function asTree(list, key){
     if (!Array.isArray(list) || !list.length) return null;
@@ -1783,6 +1790,10 @@ function restoreDraft(){
 function clearForm(){
   $('f-amount').value=''; $('f-title').value=''; $('f-memo').value='';
   $('f-fixed').checked=false; $('f-date').value = selDate || todayStr();
+  /* 고른 카테고리·결제수단도 처음 자리로 되돌린다 —
+     지난 기록의 선택이 남아 있으면 다음 건이 엉뚱한 칸에 들어간다 */
+  selCat = selSub = openCat = null;
+  selGroup = selMethod = openGroup = null;
 }
 attachThousands($('f-amount'), false);
 attachThousands($('fix-amt'), false);
@@ -1881,6 +1892,12 @@ function entryRow(e, q){
   x.className='x'; x.textContent='✕'; x.setAttribute('aria-label','삭제');
   armDelete(x, ()=>{
     state.entries = state.entries.filter(z=>z.id!==e.id);
+    /* 고정지출에서 생긴 건이면 그 달은 다시 자동으로 넣지 않는다 */
+    if (e.fixedRef){
+      const f = (state.fixed||[]).find(z=>z.id===e.fixedRef);
+      if (f){ f.skip = Array.isArray(f.skip) ? f.skip : [];
+              if (f.skip.indexOf(e.date.slice(0,7)) < 0) f.skip.push(e.date.slice(0,7)); }
+    }
     if (editingId === e.id){ editingId = null; clearForm(); }
     recordOp({t:'del', id:e.id});
     toast('삭제했어요'); renderAll();
@@ -2508,6 +2525,7 @@ $('fix-add').addEventListener('click', ()=>{
   const grp = (state.methodGroups.find(g=>g.items.includes(method)) || {}).name || '기타';
   state.fixed.push({
     id: uid(), name, amount: amt, day,
+    since: todayStr().slice(0,7), skip: [],
     category: $('fix-cat').value || '기타',
     sub: $('fix-sub').value || '',
     method, methodGroup: grp
@@ -2515,6 +2533,50 @@ $('fix-add').addEventListener('click', ()=>{
   $('fix-name').value=''; $('fix-amt').value=''; $('fix-day').value='';
   toast('고정지출을 추가했어요'); renderAll(); scheduleSave();
 });
+/* 등록해 둔 고정지출을 날짜가 지나면 알아서 넣는다.
+   - since(등록한 달)부터 이번 달까지만 본다 — 과거가 통째로 생기지 않게
+   - 그 달의 결제일이 아직 안 왔으면 넣지 않는다 (안 나간 돈을 쓴 걸로 치면 안 된다)
+   - id 를 fixedRef+달로 고정해 두 기기가 같이 넣어도 한 건으로 합쳐진다
+   - 사용자가 지운 달은 f.skip 에 남아 다시 살아나지 않는다 */
+function autoFixed(){
+  if (!Array.isArray(state.fixed) || !state.fixed.length) return 0;
+  const today = todayStr(), nowMk = today.slice(0,7);
+  const [ny, nm] = nowMk.split('-').map(Number);
+  const seen = new Set(state.entries.filter(e=>e.fixedRef)
+                       .map(e=>e.fixedRef+'|'+e.date.slice(0,7)));
+  let added = 0;
+  state.fixed.forEach(f=>{
+    const since = /^\d{4}-\d{2}$/.test(f.since || '') ? f.since : nowMk;
+    let [y, m] = since.split('-').map(Number);
+    const skip = Array.isArray(f.skip) ? f.skip : [];
+    for (let guard = 0; guard < 240 && (y < ny || (y === ny && m <= nm)); guard++){
+      const mk = y+'-'+String(m).padStart(2,'0');
+      const ds = mk+'-'+String(Math.min(f.day, lastDayOf(y, m))).padStart(2,'0');
+      if (ds <= today && !seen.has(f.id+'|'+mk) && skip.indexOf(mk) < 0){
+        const it = { id: 'fx-'+f.id+'-'+mk, fixedRef: f.id, date: ds,
+          type:'expense', amount: f.amount, category: f.category || '기타',
+          sub: f.sub || '', method: f.method || '현금',
+          methodGroup: f.methodGroup || '기타', title: f.name, memo:'', fixed: true };
+        state.entries.push(it); recordOp({t:'entry', e:it});
+        seen.add(f.id+'|'+mk); added++;
+      }
+      m++; if (m > 12){ m = 1; y++; }
+    }
+  });
+  if (added) state.entries.sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  return added;
+}
+/* 자동으로 들어간 뒤 달이 바뀌거나 결제일이 지나도 바로 반영되게 */
+function autoFixedNow(silent){
+  const n = autoFixed();
+  if (!n) return 0;
+  invalidateCaches(); renderAll(); scheduleSave();
+  if (!silent) toast('고정지출 '+n+'건을 자동으로 넣었어요');
+  return n;
+}
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) autoFixedNow(false); });
+window.addEventListener('focus', ()=> autoFixedNow(false));
+
 $('fix-apply').addEventListener('click', ()=>{
   if (!state.fixed.length){ toast('등록된 고정지출이 없어요'); return; }
   const mk = ui.month;
@@ -2526,9 +2588,11 @@ $('fix-apply').addEventListener('click', ()=>{
   const lastDay = new Date(y, m, 0).getDate();
   state.fixed.forEach(f=>{
     if (existing.has(key(f.id))) return;
+    /* 직접 누른 것이니 전에 지워서 막아 둔 달이어도 다시 넣는다 */
+    if (Array.isArray(f.skip)) f.skip = f.skip.filter(x=>x!==mk);
     const day = Math.min(f.day, lastDay);
     const fixItem = {
-      id: uid(), fixedRef: f.id, date: mk+'-'+String(day).padStart(2,'0'),
+      id: 'fx-'+f.id+'-'+mk, fixedRef: f.id, date: mk+'-'+String(day).padStart(2,'0'),
       type:'expense', amount: f.amount, category: f.category || '기타',
       sub: f.sub || '',
       method: f.method || '현금', methodGroup: f.methodGroup || '기타',
@@ -4069,7 +4133,9 @@ placeSheet();
 if (selDate) openSheet(selDate, true);
 restoreDraft();
 if (lfQ) $('lf-q').value = lfQ;
+const autoN = autoFixed();
 renderAll();
+if (autoN){ toast('고정지출 '+autoN+'건을 자동으로 넣었어요'); scheduleSave(); }
 /* 다른 기기가 먼저 적어 둔 것이 있으면 받아 온다 */
 if (syncOn()){ setSaveState('받아오는 중…'); syncNow(false); }
 
