@@ -405,6 +405,8 @@ body.sheet-open nav{transform:translate(-50%,100%);pointer-events:none}
 .amount-input{font-family:var(--serif);font-size:22px;font-weight:600;text-align:right;
   letter-spacing:-.01em;padding:7px 12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+/* 대분류는 드롭다운 한 줄로 — 칩이 열몇 개 깔리면 입력칸이 화면 밖으로 밀린다 */
+select.pick{width:100%;padding:10px 11px;font-size:14px}
 .chip{padding:6px 11px;border-radius:var(--r-sm);background:transparent;
   border:1px solid var(--line2);font-size:13px;color:var(--ink2);transition:all .12s}
 .chip:hover{border-color:var(--accent);color:var(--ink)}
@@ -1055,12 +1057,12 @@ if ('serviceWorker' in navigator)
         </div>
         <div class="cat-block" style="margin-bottom:10px">
           <span class="flabel">카테고리</span>
-          <div class="chips" id="f-cats"></div>
+          <select id="f-cat-sel" class="pick" aria-label="카테고리"></select>
           <div class="subwrap hidden" id="f-subwrap"><div class="chips sub" id="f-subs"></div></div>
         </div>
         <div class="method-block" style="margin-bottom:10px">
           <span class="flabel">결제수단</span>
-          <div class="chips" id="f-mgroups"></div>
+          <select id="f-mgrp-sel" class="pick" aria-label="결제수단"></select>
           <div class="subwrap hidden" id="f-mwrap"><div class="chips sub" id="f-methods"></div></div>
         </div>
         <div class="frow"><div><span class="flabel">내용</span><input type="text" id="f-title" aria-label="내용" placeholder="예: 점심 김치찌개"></div></div>
@@ -1682,6 +1684,15 @@ function renderTransferFields(){
     note.textContent = '계좌 사이 이동이라 수입·지출에는 안 들어가요';
   }
 }
+$('f-cat-sel').addEventListener('change', ()=>{
+  selCat = $('f-cat-sel').value; selSub = null; openCat = null; renderForm();
+});
+$('f-mgrp-sel').addEventListener('change', ()=>{
+  const g = state.methodGroups.find(x=>x.name===$('f-mgrp-sel').value);
+  selGroup = g ? g.name : null;
+  selMethod = g ? (g.items[0] || g.name) : null;
+  openGroup = null; renderForm();
+});
 $('f-from').addEventListener('change', ()=>{ selFrom = $('f-from').value; renderTransferFields(); });
 $('f-to').addEventListener('change',   ()=>{ selTo   = $('f-to').value;   renderTransferFields(); });
 
@@ -1730,31 +1741,25 @@ function renderForm(){
   if (!cur){ cur = cats[0]; selCat = cur ? cur.name : null; selSub = null; }
   if (selSub && cur && !cur.subs.includes(selSub)) selSub = null;
 
-  parentChips($('f-cats'), cats, c=>c.subs, selCat, openCat, (node, kids)=>{
-    if (node.name === selCat && kids.length) openCat = (openCat===node.name ? null : node.name);
-    else { selCat = node.name; selSub = null; openCat = kids.length ? node.name : null; }
-    renderForm();
-  });
-  const openNode = cats.find(c=>c.name===openCat);
-  const showSubs = !!(openNode && openNode.subs.length && openCat===selCat);
-  $('f-subwrap').classList.toggle('hidden', !showSubs);
-  if (showSubs) subChips($('f-subs'), openNode.subs, selSub, n=>{ selSub=n; renderForm(); }, '전체');
+  const cs = $('f-cat-sel');
+  cs.innerHTML = cats.map(c=>'<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>').join('');
+  if (selCat) cs.value = selCat;
+  /* 고른 대분류의 소분류는 늘 펼쳐 둔다 — 한 번 더 누르게 할 이유가 없다 */
+  const subs = cur ? cur.subs : [];
+  $('f-subwrap').classList.toggle('hidden', !subs.length);
+  if (subs.length) subChips($('f-subs'), subs, selSub, n=>{ selSub=n; renderForm(); }, '전체');
 
   /* 결제수단 — 세부 항목은 반드시 하나 고르게 한다 */
   let grp = state.methodGroups.find(g=>g.name===selGroup);
   if (!grp){ grp = state.methodGroups[0]; selGroup = grp ? grp.name : null; selMethod = null; }
   if (grp && (!selMethod || !grp.items.includes(selMethod))) selMethod = grp.items[0] || grp.name;
 
-  parentChips($('f-mgroups'), state.methodGroups, g=>(g.items.length>1?g.items:[]),
-    selGroup, openGroup, (node, kids)=>{
-      if (node.name === selGroup && kids.length) openGroup = (openGroup===node.name ? null : node.name);
-      else { selGroup = node.name; selMethod = node.items[0] || node.name; openGroup = kids.length ? node.name : null; }
-      renderForm();
-    });
-  const openG = state.methodGroups.find(g=>g.name===openGroup);
-  const showItems = !!(openG && openG.items.length>1 && openGroup===selGroup);
-  $('f-mwrap').classList.toggle('hidden', !showItems);
-  if (showItems) subChips($('f-methods'), openG.items, selMethod, n=>{ selMethod=n; renderForm(); });
+  const ms = $('f-mgrp-sel');
+  ms.innerHTML = state.methodGroups.map(g=>'<option value="'+esc(g.name)+'">'+esc(g.name)+'</option>').join('');
+  if (selGroup) ms.value = selGroup;
+  const items = (grp && grp.items.length > 1) ? grp.items : [];
+  $('f-mwrap').classList.toggle('hidden', !items.length);
+  if (items.length) subChips($('f-methods'), items, selMethod, n=>{ selMethod=n; renderForm(); });
 
   if (!$('f-date').value) $('f-date').value = todayStr();
   $('edit-banner').classList.toggle('hidden', !editingId);
