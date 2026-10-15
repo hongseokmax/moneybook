@@ -1121,37 +1121,22 @@ if ('serviceWorker' in navigator)
     <!-- 관리 -->
     <section id="tab-manage" class="hidden">
       <div class="card">
-        <h2>앱으로 설치</h2>
-        <div id="install-box"></div>
+        <h2>수입 카테고리</h2>
+        <div class="mg-tools">
+          <span class="lbl" id="mg-inc-hint"></span>
+          <button class="btn-ghost" data-sort="income">순서 편집</button>
+        </div>
+        <div class="mg-list" id="mg-inc"></div>
+        <div class="addline"><input type="text" id="mg-cat-inc-in" placeholder="새 카테고리"><button class="btn-ghost" id="mg-cat-inc-add">추가</button></div>
       </div>
       <div class="card">
-        <h2>기기 맞추기</h2>
-        <p class="hint" id="sy-note">아이폰·맥·윈도우가 같은 장부를 보게 합니다.</p>
-        <div id="sy-state"></div>
-        <div class="sy-form" id="sy-form">
-          <label class="sy-row"><span>깃허브 아이디</span>
-            <input type="text" id="sy-owner" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="예: hongseok"></label>
-          <label class="sy-row"><span>저장소 이름</span>
-            <input type="text" id="sy-repo" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="예: moneybook-data"></label>
-          <label class="sy-row"><span>파일 이름</span>
-            <input type="text" id="sy-path" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="data.json"></label>
-          <label class="sy-row"><span>토큰</span>
-            <input type="password" id="sy-token" autocomplete="off" placeholder="github_pat_..."></label>
-          <div class="sy-btns">
-            <button class="btn-primary" id="sy-save">연결하기</button>
-            <button class="btn-ghost" id="sy-now">지금 맞추기</button>
-            <button class="btn-ghost" id="sy-off">연결 끊기</button>
-          </div>
+        <h2>지출 카테고리</h2>
+        <div class="mg-tools">
+          <span class="lbl" id="mg-exp-hint"></span>
+          <button class="btn-ghost" data-sort="expense">순서 편집</button>
         </div>
-      </div>
-      <div class="card">
-        <h2 id="bud-head">예산</h2>
-        <div id="bud-view"></div>
-        <div class="addline">
-          <select id="bud-cat"></select>
-          <input type="text" id="bud-amt" aria-label="예산액" placeholder="예산액" inputmode="numeric" autocomplete="off">
-          <button class="btn-ghost" id="bud-set">설정</button>
-        </div>
+        <div class="mg-list" id="mg-exp"></div>
+        <div class="addline"><input type="text" id="mg-cat-exp-in" placeholder="새 카테고리"><button class="btn-ghost" id="mg-cat-exp-add">추가</button></div>
       </div>
       <div class="card">
         <h2>고정지출</h2>
@@ -1178,24 +1163,6 @@ if ('serviceWorker' in navigator)
         <button class="btn-ghost" id="fix-apply" style="margin-top:4px;width:100%">보고 있는 달에 지금 반영하기</button>
       </div>
       <div class="card">
-        <h2>수입 카테고리</h2>
-        <div class="mg-tools">
-          <span class="lbl" id="mg-inc-hint"></span>
-          <button class="btn-ghost" data-sort="income">순서 편집</button>
-        </div>
-        <div class="mg-list" id="mg-inc"></div>
-        <div class="addline"><input type="text" id="mg-cat-inc-in" placeholder="새 카테고리"><button class="btn-ghost" id="mg-cat-inc-add">추가</button></div>
-      </div>
-      <div class="card">
-        <h2>지출 카테고리</h2>
-        <div class="mg-tools">
-          <span class="lbl" id="mg-exp-hint"></span>
-          <button class="btn-ghost" data-sort="expense">순서 편집</button>
-        </div>
-        <div class="mg-list" id="mg-exp"></div>
-        <div class="addline"><input type="text" id="mg-cat-exp-in" placeholder="새 카테고리"><button class="btn-ghost" id="mg-cat-exp-add">추가</button></div>
-      </div>
-      <div class="card">
         <h2>자산 · 계좌</h2>
         <div class="mg-tools">
           <span class="lbl" id="mg-as-hint"></span>
@@ -1219,9 +1186,42 @@ if ('serviceWorker' in navigator)
         <div class="addline"><input type="text" id="mg-method-in" placeholder="새 결제수단 종류"><button class="btn-ghost" id="mg-method-add">추가</button></div>
       </div>
       <div class="card">
+        <h2 id="bud-head">예산</h2>
+        <div id="bud-view"></div>
+        <div class="addline">
+          <select id="bud-cat"></select>
+          <input type="text" id="bud-amt" aria-label="예산액" placeholder="예산액" inputmode="numeric" autocomplete="off">
+          <button class="btn-ghost" id="bud-set">설정</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>카드 결제일</h2>
         <p class="hint">카드마다 결제일과 사용기간을 정하면 결제 예정 금액이 계산돼요.</p>
         <div id="bill-setup"></div>
+      </div>
+      <div class="card">
+        <h2>기기 맞추기</h2>
+        <p class="hint" id="sy-note">아이폰·맥·윈도우가 같은 장부를 보게 합니다.</p>
+        <div id="sy-state"></div>
+        <div class="sy-form" id="sy-form">
+          <label class="sy-row"><span>깃허브 아이디</span>
+            <input type="text" id="sy-owner" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="예: hongseok"></label>
+          <label class="sy-row"><span>저장소 이름</span>
+            <input type="text" id="sy-repo" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="예: moneybook-data"></label>
+          <label class="sy-row"><span>파일 이름</span>
+            <input type="text" id="sy-path" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="data.json"></label>
+          <label class="sy-row"><span>토큰</span>
+            <input type="password" id="sy-token" autocomplete="off" placeholder="github_pat_..."></label>
+          <div class="sy-btns">
+            <button class="btn-primary" id="sy-save">연결하기</button>
+            <button class="btn-ghost" id="sy-now">지금 맞추기</button>
+            <button class="btn-ghost" id="sy-off">연결 끊기</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>앱으로 설치</h2>
+        <div id="install-box"></div>
       </div>
       <div class="card">
         <h2>백업</h2>
