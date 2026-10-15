@@ -855,6 +855,38 @@ body:has(#tab-input.hidden) .fab,body.sheet-open .fab{display:none}
   .month-nav .cur{font-size:24px}
   .summary{padding:10px 32px 22px}
 }
+
+/* 입력 창: 날짜·금액 칸을 같은 높이·같은 글씨로 */
+#sheet .frow input#f-date,#sheet .frow input#f-amount{height:52px;padding:0 14px;font-size:17px;font-weight:600;
+  font-family:var(--sans);letter-spacing:-.01em;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line2);border-radius:12px}
+#sheet input#f-date{-webkit-appearance:none;appearance:none;display:flex;align-items:center;text-align:left;min-width:0}
+#sheet input#f-date::-webkit-date-and-time-value{text-align:left;margin:0}
+#sheet input#f-date::-webkit-calendar-picker-indicator{opacity:.45}
+#sheet input#f-amount{text-align:right}
+#sheet .frow>div{min-width:0}
+/* 목록 상자 */
+select.pick,.bs-col select{height:48px;padding:0 40px 0 14px;font-size:16px;font-weight:500;border-radius:12px;
+  -webkit-appearance:none;appearance:none;background-color:var(--surface);
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 20px) 50%,calc(100% - 15px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+select.pick.ph{color:var(--faint)}
+.subpick{margin-top:8px}
+/* 끌어내리는 손잡이 — 손가락이 닿기 쉽게 위아래 여백을 넉넉히 */
+.sheet-grip{width:40px;height:5px;margin:0 auto;box-sizing:content-box;padding:10px 40px 8px;
+  background-clip:content-box;cursor:grab;touch-action:none}
+.sheet-head{touch-action:none}
+
+/* 카드 결제 설정: [사용기간(+시작일)] | [결제일] 두 칸 */
+.bs-row{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-items:start;padding:14px 0}
+.bs-row .nm{grid-column:1 / -1;flex:none;font-size:15px;font-weight:600}
+.bs-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.bs-col .lb{font-size:12px;color:var(--muted)}
+.bs-row .bs-col select{width:100%;height:46px;font-size:15px}
+.bs-row .bs-note{font-size:12px;color:var(--muted)}
+/* 회색 바 모서리 둥글게 */
+.sheet-grip{background:none}
+.sheet-grip::before{content:'';display:block;width:40px;height:5px;border-radius:3px;background:var(--line2)}
 </style>
 </head>
 <body>
@@ -1215,12 +1247,12 @@ if ('serviceWorker' in navigator)
         <div class="cat-block" style="margin-bottom:10px">
           <span class="flabel">카테고리</span>
           <select id="f-cat-sel" class="pick" aria-label="카테고리"></select>
-          <div class="subwrap hidden" id="f-subwrap"><div class="chips sub" id="f-subs"></div></div>
+          <div class="subpick hidden" id="f-subwrap"><select id="f-sub-sel" class="pick" aria-label="세부 카테고리"></select></div>
         </div>
         <div class="method-block" style="margin-bottom:10px">
           <span class="flabel">결제수단</span>
           <select id="f-mgrp-sel" class="pick" aria-label="결제수단"></select>
-          <div class="subwrap hidden" id="f-mwrap"><div class="chips sub" id="f-methods"></div></div>
+          <div class="subpick hidden" id="f-mwrap"><select id="f-meth-sel" class="pick" aria-label="세부 결제수단"></select></div>
         </div>
         <div class="frow"><div><span class="flabel">내용</span><input type="text" id="f-title" aria-label="내용" placeholder="예: 점심 김치찌개"></div></div>
         <div class="frow"><div><span class="flabel">메모 (선택)</span><input type="text" id="f-memo" aria-label="메모" placeholder=""></div></div>
@@ -1843,8 +1875,10 @@ function renderTransferFields(){
   }
 }
 $('f-cat-sel').addEventListener('change', ()=>{
-  selCat = $('f-cat-sel').value; selSub = null; openCat = null; renderForm();
+  selCat = $('f-cat-sel').value || null; selSub = null; openCat = null; renderForm();
 });
+$('f-sub-sel').addEventListener('change', ()=>{ selSub = $('f-sub-sel').value || null; });
+$('f-meth-sel').addEventListener('change', ()=>{ selMethod = $('f-meth-sel').value; });
 $('f-mgrp-sel').addEventListener('change', ()=>{
   const g = state.methodGroups.find(x=>x.name===$('f-mgrp-sel').value);
   selGroup = g ? g.name : null;
@@ -1895,18 +1929,24 @@ function renderForm(){
     return;
   }
   const cats = state.categories[formType] || [];
-  let cur = cats.find(c=>c.name===selCat);
-  if (!cur){ cur = cats[0]; selCat = cur ? cur.name : null; selSub = null; }
+  const cur = cats.find(c=>c.name===selCat) || null;
+  if (!cur){ selCat = null; selSub = null; }
   if (selSub && cur && !cur.subs.includes(selSub)) selSub = null;
 
   const cs = $('f-cat-sel');
-  cs.innerHTML = cats.map(c=>'<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>').join('');
-  if (selCat) cs.value = selCat;
+  cs.innerHTML = '<option value="">카테고리 선택</option>' +
+    cats.map(c=>'<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>').join('');
+  cs.value = selCat || '';
+  cs.classList.toggle('ph', !selCat);
   /* 고른 대분류의 소분류는 늘 펼쳐 둔다 — 한 번 더 누르게 할 이유가 없다 */
   const subs = cur ? cur.subs : [];
   $('f-subwrap').classList.toggle('hidden', !subs.length);
-  if (subs.length) subChips($('f-subs'), subs, selSub, n=>{ selSub=n; renderForm(); }, '전체');
-  else $('f-subs').innerHTML = '';
+  if (subs.length){
+    const ss = $('f-sub-sel');
+    ss.innerHTML = '<option value="">세부 항목 없음</option>' +
+      subs.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+    ss.value = selSub || '';
+  }
 
   /* 결제수단 — 세부 항목은 반드시 하나 고르게 한다 */
   let grp = state.methodGroups.find(g=>g.name===selGroup);
@@ -1918,8 +1958,11 @@ function renderForm(){
   if (selGroup) ms.value = selGroup;
   const items = (grp && grp.items.length > 1) ? grp.items : [];
   $('f-mwrap').classList.toggle('hidden', !items.length);
-  if (items.length) subChips($('f-methods'), items, selMethod, n=>{ selMethod=n; renderForm(); });
-  else $('f-methods').innerHTML = '';
+  if (items.length){
+    const mm = $('f-meth-sel');
+    mm.innerHTML = items.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+    mm.value = selMethod;
+  }
 
   if (!$('f-date').value) $('f-date').value = todayStr();
   $('edit-banner').classList.toggle('hidden', !editingId);
@@ -1985,6 +2028,7 @@ $('f-save').addEventListener('click', ()=>{
       memo: $('f-memo').value.trim(), fixed:false
     };
   } else {
+    if (!selCat){ toast('카테고리를 골라 주세요'); $('f-cat-sel').focus(); return; }
     const prev = editingId ? state.entries.find(e=>e.id===editingId) : null;
     item = {
       id: editingId || uid(), date, type: formType, amount,
@@ -2242,6 +2286,38 @@ function closeSheet(){
 }
 $('overlay').addEventListener('click', closeSheet);
 $('sheet-close').addEventListener('click', closeSheet);
+/* 위쪽 회색 바(와 제목 줄)를 아래로 끌면 시트가 손을 따라 내려오고, 충분히 내리면 닫힌다 */
+(function(){
+  const sheet = $('sheet'), ov = $('overlay');
+  let y0 = 0, t0 = 0, dy = 0, dragging = false, id = null;
+  function start(ev){
+    if (isWide() || !sheet.classList.contains('on')) return;
+    if (ev.target.closest('button')) return;
+    id = ev.pointerId; y0 = ev.clientY; t0 = ev.timeStamp; dy = 0; dragging = true;
+    ev.currentTarget.setPointerCapture(id);
+    sheet.style.transition = 'none'; ov.style.transition = 'none';
+  }
+  function move(ev){
+    if (!dragging || ev.pointerId !== id) return;
+    dy = Math.max(0, ev.clientY - y0);
+    sheet.style.transform = 'translate(-50%,' + dy + 'px)';
+    ov.style.opacity = String(Math.max(0, 1 - dy / sheet.offsetHeight));
+  }
+  function end(ev){
+    if (!dragging || ev.pointerId !== id) return;
+    dragging = false;
+    const fast = dy > 30 && dy / Math.max(1, ev.timeStamp - t0) > 0.6;   /* 휙 내린 경우 */
+    sheet.style.transition = ''; ov.style.transition = '';
+    sheet.style.transform = ''; ov.style.opacity = '';
+    if (dy > Math.min(140, sheet.offsetHeight * 0.25) || fast) closeSheet();
+  }
+  document.querySelectorAll('#sheet .sheet-grip, #sheet .sheet-head').forEach(h=>{
+    h.addEventListener('pointerdown', start);
+    h.addEventListener('pointermove', move);
+    h.addEventListener('pointerup', end);
+    h.addEventListener('pointercancel', end);
+  });
+})();
 document.addEventListener('keydown', ev=>{
   if (ev.key==='Escape' && !isWide() && $('sheet').classList.contains('on')) closeSheet();
 });
@@ -3135,6 +3211,11 @@ function renderBillSetup(){
     const cfg = billCfg(name);
     const r = document.createElement('div'); r.className='bs-row';
     r.innerHTML = '<span class="nm">'+esc(name)+'</span>';
+    const colC = document.createElement('div'); colC.className = 'bs-col';
+    colC.innerHTML = '<span class="lb">사용기간</span>';
+    const colP = document.createElement('div'); colP.className = 'bs-col';
+    colP.innerHTML = '<span class="lb">결제일</span>';
+    r.appendChild(colC); r.appendChild(colP);
 
     const cs = document.createElement('select');
     cs.setAttribute('aria-label', name+' 사용기간');
@@ -3144,7 +3225,7 @@ function renderBillSetup(){
       setBill(name, { cycle: cs.value });
       renderAll(); scheduleSave();
     });
-    r.appendChild(cs);
+    colC.appendChild(cs);
 
     /* 날짜로 지정한 카드만 시작일을 고른다 — 끝나는 날은 그 전날로 따라간다 */
     if (BILL_CYCLES[cfg.cycle].byDay){
@@ -3156,25 +3237,25 @@ function renderBillSetup(){
         setBill(name, { startDay: +ss.value });
         renderAll(); scheduleSave();
       });
-      r.appendChild(ss);
+      colC.appendChild(ss);
     }
 
     const ds = document.createElement('select');
     ds.setAttribute('aria-label', name+' 결제일');
     ds.innerHTML = Array.from({length:31},(_,i)=>i+1)
-      .map(d=>'<option value="'+d+'"'+(cfg.payDay===d?' selected':'')+'>'+d+'일 결제</option>').join('');
+      .map(d=>'<option value="'+d+'"'+(cfg.payDay===d?' selected':'')+'>매달 '+d+'일</option>').join('');
     ds.addEventListener('change', ()=>{
       setBill(name, { payDay: +ds.value });
       renderAll(); scheduleSave();
     });
-    r.appendChild(ds);
+    colP.appendChild(ds);
 
     if (BILL_CYCLES[cfg.cycle].byDay){
       const sd = Math.min(Math.max(cfg.startDay,1),28);
       const note = document.createElement('span');
       note.className = 'bs-note';
       note.textContent = '전월 '+sd+'일 ~ 당월 '+(sd===1 ? '말' : sd-1)+'일 사용분';
-      r.appendChild(note);
+      colC.appendChild(note);
     }
     el.appendChild(r);
   });
