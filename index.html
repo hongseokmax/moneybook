@@ -1949,13 +1949,15 @@ function renderForm(){
   }
 
   /* 결제수단 — 세부 항목은 반드시 하나 고르게 한다 */
-  let grp = state.methodGroups.find(g=>g.name===selGroup);
-  if (!grp){ grp = state.methodGroups[0]; selGroup = grp ? grp.name : null; selMethod = null; }
+  const grp = state.methodGroups.find(g=>g.name===selGroup) || null;   /* 처음엔 비워 둔다 */
+  if (!grp){ selGroup = null; selMethod = null; }
   if (grp && (!selMethod || !grp.items.includes(selMethod))) selMethod = grp.items[0] || grp.name;
 
   const ms = $('f-mgrp-sel');
-  ms.innerHTML = state.methodGroups.map(g=>'<option value="'+esc(g.name)+'">'+esc(g.name)+'</option>').join('');
-  if (selGroup) ms.value = selGroup;
+  ms.innerHTML = '<option value="">결제수단 선택</option>' +
+    state.methodGroups.map(g=>'<option value="'+esc(g.name)+'">'+esc(g.name)+'</option>').join('');
+  ms.value = selGroup || '';
+  ms.classList.toggle('ph', !selGroup);
   const items = (grp && grp.items.length > 1) ? grp.items : [];
   $('f-mwrap').classList.toggle('hidden', !items.length);
   if (items.length){
@@ -2029,6 +2031,7 @@ $('f-save').addEventListener('click', ()=>{
     };
   } else {
     if (!selCat){ toast('카테고리를 골라 주세요'); $('f-cat-sel').focus(); return; }
+    if (!selGroup){ toast('결제수단을 골라 주세요'); $('f-mgrp-sel').focus(); return; }
     const prev = editingId ? state.entries.find(e=>e.id===editingId) : null;
     item = {
       id: editingId || uid(), date, type: formType, amount,
