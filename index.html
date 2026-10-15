@@ -241,7 +241,7 @@ table.rp .tw{font-size:8px;opacity:.5;margin-right:4px}
 .kd.saving{color:var(--accent)} .kd.debt{color:var(--expense)}
 .kd.invest{color:var(--accent)}
 .ag-head .gain{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
-.ag-head .gain.up{color:var(--income)} .ag-head .gain.dn{color:var(--expense)}
+.ag-head .gain.up{color:var(--expense)} .ag-head .gain.dn{color:var(--income)}
 .ar-row .nmwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .ar-row .nmwrap .nm{flex:none}
 .ar-row .sub{font-size:11px;color:var(--faint);line-height:1.5;
@@ -253,7 +253,7 @@ table.rp .tw{font-size:8px;opacity:.5;margin-right:4px}
   text-underline-offset:2px;font-weight:600;cursor:pointer}
 .ar-row .sub button.chipv:hover{background:var(--surface2);color:var(--ink)}
 .ar-row .sub b{font-weight:600}
-.ar-row .sub .up{color:var(--income)} .ar-row .sub .dn{color:var(--expense)}
+.ar-row .sub .up{color:var(--expense)} .ar-row .sub .dn{color:var(--income)}
 .ar-row .sub .stale{color:var(--warn)}
 .ar-row{display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--surface);
   border-top:1px solid var(--line)}
@@ -535,7 +535,7 @@ mark{background:var(--accent-soft);color:inherit;border-radius:2px;padding:0 1px
 .st-note{font-size:11.5px;color:var(--muted);margin:10px 0 0;line-height:1.6}
 .hero .dlt{font-size:10.5px;margin-top:4px;color:var(--faint);letter-spacing:.01em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hero .dlt.good{color:var(--income)} .hero .dlt.bad{color:var(--danger)}
+.hero .dlt.up{color:var(--expense)} .hero .dlt.dn{color:var(--income)}
 .bar-row .bd{width:50px;flex-shrink:0;text-align:right;font-size:10.5px;color:var(--faint);white-space:nowrap}
 .bar-row .bd.up{color:var(--danger)} .bar-row .bd.dn{color:var(--income)}
 
@@ -2514,8 +2514,9 @@ $('lf-q').addEventListener('keydown', ev=>{
 });
 
 /* ── stats ── */
-/* 전월 대비 배지 — upIsGood: 늘어난 게 좋은 항목인지(수입·저축 true, 지출 false) */
-function setDelta(el, cur, prev, upIsGood){
+/* 전월 대비 배지 — 색은 방향만 따른다(오름 빨강 ▲, 내림 파랑 ▼). 좋고 나쁨으로 칠하면
+   '늘어난 수입'이 파랗게 떠서 내려간 것처럼 읽힌다 */
+function setDelta(el, cur, prev){
   if (!el) return;
   el.className = 'dlt';
   if (!cur && !prev){ el.textContent = ''; return; }
@@ -2524,7 +2525,7 @@ function setDelta(el, cur, prev, upIsGood){
   const r = Math.round(d);
   if (r === 0){ el.textContent = '전월과 비슷'; return; }
   el.textContent = '전월 대비 ' + (d > 0 ? '▲' : '▼') + Math.abs(r) + '%';
-  el.classList.add((d > 0) === !!upIsGood ? 'good' : 'bad');
+  el.classList.add(d > 0 ? 'up' : 'dn');
 }
 
 function renderStats(){
@@ -2542,9 +2543,9 @@ function renderStats(){
   $('st-exp').textContent = won(exp);
   $('st-sav').textContent = won(sav);
   $('st-sav-tile').classList.toggle('hidden', !sav);
-  setDelta($('st-inc-d'), inc, pInc, true);
-  setDelta($('st-exp-d'), exp, pExp, false);
-  setDelta($('st-sav-d'), sav, pSav, true);
+  setDelta($('st-inc-d'), inc, pInc);
+  setDelta($('st-exp-d'), exp, pExp);
+  setDelta($('st-sav-d'), sav, pSav);
 
   const expList = list.filter(e=>e.type==='expense');
 
