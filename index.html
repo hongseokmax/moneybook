@@ -887,6 +887,14 @@ select.pick.ph{color:var(--faint)}
 /* 회색 바 모서리 둥글게 */
 .sheet-grip{background:none}
 .sheet-grip::before{content:'';display:block;width:40px;height:5px;border-radius:3px;background:var(--line2)}
+
+/* 아이폰 상태 표시줄 아래로 상단 줄을 내린다 */
+@media (max-width: 899px){ header{padding-top:calc(12px + env(safe-area-inset-top, 0px))} }
+/* 손가락으로 누른 칸이 회색으로 남아 날짜 두 개가 눌린 것처럼 보이지 않게 — 마우스에서만 */
+.cal .cell:hover:not(.pad){background:none}
+.cal .cell.sel:not(.pad):hover{background:var(--surface2)}
+@media (hover:hover){ .cal .cell:hover:not(.pad){background:var(--surface2)} }
+.cal .cell{-webkit-tap-highlight-color:transparent}
 </style>
 </head>
 <body>
@@ -1808,7 +1816,8 @@ document.querySelectorAll('nav button').forEach(b=>{
   b.addEventListener('click', ()=>{
     if (!isWide() && $('sheet').classList.contains('on')) closeSheet();
     const was = ui.tab;
-    ui.tab = b.dataset.tab; renderAll();   /* 탭이 바뀌면 그 탭만 새로 그려진다 */
+    ui.tab = b.dataset.tab; renderAll();
+    if (was !== ui.tab) window.scrollTo(0, 0);   /* 탭이 바뀌면 그 탭만 새로 그려진다 */
     if (was === 'manage' && ui.tab !== 'manage') flushSave();   /* 미뤄 둔 저장을 여기서 보낸다 */
   });
 });
@@ -2287,8 +2296,23 @@ function closeSheet(){
   document.body.style.overflow = '';
   renderCalendar(); renderDayCard();
 }
-$('overlay').addEventListener('click', closeSheet);
+$('overlay').addEventListener('click', ev=>{
+  const ov = $('overlay');
+  ov.style.pointerEvents = 'none';
+  const under = document.elementFromPoint(ev.clientX, ev.clientY);
+  ov.style.pointerEvents = '';
+  const cell = under && under.closest('#cal .cell:not(.pad)');
+  if (cell) cell.click(); else closeSheet();
+});
 $('sheet-close').addEventListener('click', closeSheet);
+/* 입력 창에서 날짜를 바꾸면 제목·그날 내역·달력도 바로 그 날짜로 */
+$('f-date').addEventListener('change', ()=>{
+  const ds = $('f-date').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ds) || ds === selDate) return;
+  ui.month = ds.slice(0,7);
+  openSheet(ds, true);
+  renderHeader();
+});
 /* 위쪽 회색 바(와 제목 줄)를 아래로 끌면 시트가 손을 따라 내려오고, 충분히 내리면 닫힌다 */
 (function(){
   const sheet = $('sheet'), ov = $('overlay');
