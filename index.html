@@ -917,6 +917,17 @@ select.pick.ph{color:var(--faint)}
   #tab-manage .card.acc{margin:0 0 12px;padding-inline:22px}
   #tab-manage .card.acc + .card.acc{border-top:0}
 }
+
+/* 달력: 계좌이체 금액은 회색 */
+.cal .cell .tr{color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums;line-height:1.3;
+  white-space:nowrap;max-width:100%;letter-spacing:-.04em;font-weight:500}
+.cal .cell .tr.w6{font-size:9.2px;letter-spacing:-.06em}
+.cal .cell .tr.w7{font-size:8.4px;letter-spacing:-.07em}
+.cal .cell .tr.w8{font-size:7.6px;letter-spacing:-.08em}
+@media (min-width: 900px){
+  .cal .cell .tr{font-size:11.5px}
+  .cal .cell .tr.w6{font-size:10.5px} .cal .cell .tr.w7{font-size:10px} .cal .cell .tr.w8{font-size:9.5px}
+}
 </style>
 </head>
 <body>
@@ -2208,11 +2219,12 @@ function renderCalendar(){
   const byDay = {};
   monthEntries(ui.month).forEach(e=>{
     const d = +e.date.slice(8);
-    const t = byDay[d] || (byDay[d] = {i:0, e:0, s:0, n:0});
+    const t = byDay[d] || (byDay[d] = {i:0, e:0, s:0, tr:0, n:0});
     if (e.type==='transfer'){                        /* 헤더·통계와 같은 순액 기준 */
       const v = +e.amount||0;
       if (isSaving(e.to) && !isSaving(e.from)) t.s += v;
       else if (isSaving(e.from) && !isSaving(e.to)) t.s -= v;
+      else t.tr += v;                                  /* 저축과 무관한 계좌 사이 이체 */
     }
     else t[e.type==='income'?'i':'e'] += (+e.amount||0);
     t.n++;
@@ -2231,7 +2243,8 @@ function renderCalendar(){
     b.innerHTML = '<span class="d">'+d+'</span>'+
       (t && t.e ? '<span class="e'+cellClass(t.e)+'">-'+cellWon(t.e)+'</span>' : '')+
       (t && t.i ? '<span class="i'+cellClass(t.i)+'">+'+cellWon(t.i)+'</span>' : '')+
-      (t && t.s ? '<span class="sv'+cellClass(t.s)+'">'+cellWon(t.s)+'</span>' : '');
+      (t && t.s ? '<span class="sv'+cellClass(t.s)+'">'+cellWon(t.s)+'</span>' : '')+
+      (t && t.tr ? '<span class="tr'+cellClass(t.tr)+'">'+cellWon(t.tr)+'</span>' : '');
     b.dataset.ds = ds;
     b.addEventListener('click', ()=>{ if (Date.now() - calTapAt > 600) openSheet(ds); });
     el.appendChild(b);
