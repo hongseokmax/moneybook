@@ -895,6 +895,28 @@ select.pick.ph{color:var(--faint)}
 .cal .cell.sel:not(.pad):hover{background:var(--surface2)}
 @media (hover:hover){ .cal .cell:hover:not(.pad){background:var(--surface2)} }
 .cal .cell{-webkit-tap-highlight-color:transparent}
+
+/* 달력 칸: 두 번 탭 확대 판단을 끄고 바로 반응 */
+.cal .cell{touch-action:manipulation}
+/* 관리 탭 — 제목을 누르면 그 칸만 열린다 */
+#tab-manage .card.acc{padding-block:0}
+#tab-manage .card.acc>h2{display:flex;align-items:center;justify-content:space-between;margin:0;
+  padding:20px 0;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+#tab-manage .card.acc>h2::after{content:'';width:8px;height:8px;margin-right:4px;flex-shrink:0;
+  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(45deg) translateY(-3px);transition:transform .25s}
+#tab-manage .card.acc.open>h2::after{transform:rotate(-135deg) translateY(-1px)}
+.mg-acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s cubic-bezier(.32,.72,0,1)}
+#tab-manage .card.open .mg-acc{grid-template-rows:1fr}
+.mg-acc-in{min-height:0;overflow:hidden;opacity:0;transition:opacity .2s}
+#tab-manage .card.open .mg-acc-in{opacity:1;padding-bottom:22px}
+#tab-manage .card.acc + .card.acc{border-top-width:1px;border-top-color:var(--line)}
+@media (prefers-reduced-motion: reduce){ .mg-acc,.mg-acc-in,#tab-manage .card.acc>h2::after{transition:none} }
+@media (min-width: 900px){
+  #tab-manage{display:block;max-width:760px}
+  #tab-manage .card.acc{margin:0 0 12px;padding-inline:22px}
+  #tab-manage .card.acc + .card.acc{border-top:0}
+}
 </style>
 </head>
 <body>
@@ -2159,6 +2181,26 @@ function cellClass(n){
   const len = String(Math.abs(n)).length;      /* 부호·쉼표 제외한 자릿수 */
   return len >= 8 ? ' w8' : len >= 7 ? ' w7' : len >= 6 ? ' w6' : '';
 }
+let calTapAt = 0;
+(function(){
+  const cal = $('cal'); let down = null;
+  cal.addEventListener('pointerdown', ev=>{
+    const c = ev.target.closest('.cell[data-ds]');
+    down = (c && ev.pointerType !== 'mouse') ? {c, x:ev.clientX, y:ev.clientY, id:ev.pointerId} : null;
+  });
+  cal.addEventListener('pointerup', ev=>{
+    if (!down || ev.pointerId !== down.id) return;
+    const d = down; down = null;
+    if (Math.abs(ev.clientX-d.x) > 10 || Math.abs(ev.clientY-d.y) > 10) return;   /* 스크롤이었다 */
+    calTapAt = Date.now();
+    openSheet(d.c.dataset.ds);
+    /* 같은 탭에서 뒤따라오는 '클릭'이 막 올라온 창의 칸을 누르지 않게 잠깐 막는다 */
+    const block = e=>{ e.stopPropagation(); e.preventDefault(); };
+    document.addEventListener('click', block, true);
+    setTimeout(()=> document.removeEventListener('click', block, true), 450);
+  });
+  cal.addEventListener('pointercancel', ()=>{ down = null; });
+})();
 function renderCalendar(){
   const el = $('cal'); el.innerHTML='';
   const [y,m] = ui.month.split('-').map(Number);
@@ -2190,7 +2232,8 @@ function renderCalendar(){
       (t && t.e ? '<span class="e'+cellClass(t.e)+'">-'+cellWon(t.e)+'</span>' : '')+
       (t && t.i ? '<span class="i'+cellClass(t.i)+'">+'+cellWon(t.i)+'</span>' : '')+
       (t && t.s ? '<span class="sv'+cellClass(t.s)+'">'+cellWon(t.s)+'</span>' : '');
-    b.addEventListener('click', ()=> openSheet(ds));
+    b.dataset.ds = ds;
+    b.addEventListener('click', ()=>{ if (Date.now() - calTapAt > 600) openSheet(ds); });
     el.appendChild(b);
   }
   const days = Object.keys(byDay).length;
@@ -4456,6 +4499,34 @@ function renderAll(){
   /* 시트는 어느 탭에서든 열릴 수 있다 */
   if (k !== 'input' && $('sheet').classList.contains('on')) TAB_RENDER.input();
 }
+(function(){
+  const cards = [...document.querySelectorAll('#tab-manage > .card')];
+  cards.forEach(card=>{
+    const h = card.querySelector(':scope > h2'); if (!h) return;
+    const body = document.createElement('div'); body.className = 'mg-acc';
+    const inner = document.createElement('div'); inner.className = 'mg-acc-in';
+    [...card.childNodes].filter(n=>n!==h).forEach(n=> inner.appendChild(n));
+    body.appendChild(inner); card.appendChild(body);
+    card.classList.add('acc');
+    h.setAttribute('role','button'); h.tabIndex = 0; h.setAttribute('aria-expanded','false');
+    inner.inert = true;
+    const toggle = ()=>{
+      const open = !card.classList.contains('open');
+      cards.forEach(c=>{
+        const on = c===card && open;
+        c.classList.toggle('open', on);
+        const hh = c.querySelector(':scope > h2'); if (hh) hh.setAttribute('aria-expanded', on?'true':'false');
+        const ii = c.querySelector('.mg-acc-in'); if (ii) ii.inert = !on;
+      });
+      if (open) setTimeout(()=>{
+        const r = card.getBoundingClientRect();
+        if (r.top < 60) window.scrollBy({top: r.top - 70, behavior:'smooth'});
+      }, 280);
+    };
+    h.addEventListener('click', toggle);
+    h.addEventListener('keydown', ev=>{ if (ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); toggle(); } });
+  });
+})();
 if (typeof ui.selDate === 'string') selDate = ui.selDate;
 delete ui.selDate;
 placeSheet();
