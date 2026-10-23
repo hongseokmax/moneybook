@@ -1,11 +1,11 @@
 /* 오프라인에서도 열리게 — 앱 파일만 담아 둔다. 장부는 기기 안(IndexedDB)에 있다. */
-const CACHE = 'moneybook-v1';
+const CACHE = 'moneybook-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest',
                './pret-r.woff2', './pret-b.woff2',
                './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', ev=>{
-  ev.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()));
+  ev.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES.map(f=>new Request(f,{cache:'reload'})))).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate', ev=>{
   ev.waitUntil(caches.keys()
@@ -19,7 +19,8 @@ self.addEventListener('fetch', ev=>{
   if (url.origin !== location.origin) return;      /* 깃허브 통신은 건드리지 않는다 */
   /* 새 판이 있으면 받아 두되, 없으면 담아 둔 것으로 연다 */
   ev.respondWith(
-    fetch(req).then(res=>{
+    /* 브라우저 캐시(깃허브는 10분)에 걸리면 새 판이 늦게 온다 — 매번 서버에 확인 */
+    fetch(req, {cache:'no-cache'}).then(res=>{
       if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c=>c.put(req, copy)); }
       return res;
     }).catch(()=> caches.match(req).then(r=> r || caches.match('./index.html')))
