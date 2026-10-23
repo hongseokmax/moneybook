@@ -419,7 +419,7 @@ select.pick{width:100%;padding:10px 11px;font-size:14px}
 .chips.sub .chip{font-size:12px;padding:5px 10px;background:var(--surface)}
 .chips.sub .chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .chip.none{font-style:italic}
-.chips.suggest{margin-bottom:6px}
+.chips.suggest{margin-top:6px}
 .chips.suggest:empty{display:none}
 .hint{font-size:11px;color:var(--faint);margin:-6px 0 12px;letter-spacing:.01em}
 /* 관리 탭 — 목록형 */
@@ -1297,8 +1297,8 @@ if ('serviceWorker' in navigator)
           <select id="f-mgrp-sel" class="pick" aria-label="결제수단"></select>
           <div class="subpick hidden" id="f-mwrap"><select id="f-meth-sel" class="pick" aria-label="세부 결제수단"></select></div>
         </div>
-        <div class="frow"><div><span class="flabel">내용</span><div class="chips sub suggest" id="f-title-sug"></div><input type="text" id="f-title" aria-label="내용" placeholder="예: 점심 김치찌개"></div></div>
-        <div class="frow"><div><span class="flabel">메모 (선택)</span><div class="chips sub suggest" id="f-memo-sug"></div><input type="text" id="f-memo" aria-label="메모" placeholder=""></div></div>
+        <div class="frow"><div><span class="flabel">내용</span><input type="text" id="f-title" aria-label="내용" placeholder="예: 점심 김치찌개"><div class="chips sub suggest" id="f-title-sug"></div></div></div>
+        <div class="frow"><div><span class="flabel">메모 (선택)</span><input type="text" id="f-memo" aria-label="메모" placeholder=""><div class="chips sub suggest" id="f-memo-sug"></div></div></div>
         <div class="check-row"><input type="checkbox" id="f-fixed"><label for="f-fixed">고정지출로 표시</label></div>
         <button class="btn-primary" id="f-save">저장</button>
   </div>
@@ -2041,7 +2041,7 @@ function restoreDraft(){
   if (d.from) selFrom = d.from;
   if (d.to) selTo = d.to;
 }
-/* 내용·메모를 쓰다 보면 전에 쓴 글이 칩으로 위에 뜬다 — 누르면 그 글과 함께
+/* 내용·메모를 쓰다 보면 전에 쓴 글이 칩으로 아래에 뜬다 — 누르면 그 글과 함께
    가장 최근 같은 내역의 구분·카테고리·결제수단까지 채운다. 금액·날짜는 그대로.
    앞부분이 같은 것 먼저, 그다음 자주 쓴 순 */
 function attachSuggest(field){
