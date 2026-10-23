@@ -2041,7 +2041,8 @@ function restoreDraft(){
   if (d.from) selFrom = d.from;
   if (d.to) selTo = d.to;
 }
-/* 내용·메모를 쓰다 보면 전에 쓴 글이 칩으로 위에 뜬다 — 누르면 그대로 채운다.
+/* 내용·메모를 쓰다 보면 전에 쓴 글이 칩으로 위에 뜬다 — 누르면 그 글과 함께
+   가장 최근 같은 내역의 구분·카테고리·결제수단까지 채운다. 금액·날짜는 그대로.
    앞부분이 같은 것 먼저, 그다음 자주 쓴 순 */
 function attachSuggest(field){
   const inp = $('f-'+field), box = $('f-'+field+'-sug');
@@ -2065,6 +2066,17 @@ function attachSuggest(field){
   box.addEventListener('click', ev=>{
     const b = ev.target.closest('button'); if (!b) return;
     inp.value = b.dataset.v; hide();
+    const e = state.entries.findLast(x=>(x[field]||'').trim()===b.dataset.v);   /* 날짜순이라 마지막이 최근 */
+    if (!e) return;
+    formType = e.type;
+    if (e.type === 'transfer'){ selFrom = e.from; selTo = e.to; }
+    selCat = e.category; selSub = e.sub || null;
+    selMethod = e.method;
+    selGroup = e.methodGroup ||
+      (state.methodGroups.find(g=>g.items.includes(e.method)) || {}).name || null;
+    openCat = selSub ? selCat : null;
+    openGroup = null;
+    renderForm();
   });
 }
 attachSuggest('title');
