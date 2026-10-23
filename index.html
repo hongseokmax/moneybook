@@ -419,6 +419,8 @@ select.pick{width:100%;padding:10px 11px;font-size:14px}
 .chips.sub .chip{font-size:12px;padding:5px 10px;background:var(--surface)}
 .chips.sub .chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .chip.none{font-style:italic}
+.chips.suggest{margin-bottom:6px}
+.chips.suggest:empty{display:none}
 .hint{font-size:11px;color:var(--faint);margin:-6px 0 12px;letter-spacing:.01em}
 /* 관리 탭 — 목록형 */
 .mg-tools{display:flex;justify-content:space-between;align-items:center;margin:-4px 0 10px}
@@ -1295,8 +1297,8 @@ if ('serviceWorker' in navigator)
           <select id="f-mgrp-sel" class="pick" aria-label="결제수단"></select>
           <div class="subpick hidden" id="f-mwrap"><select id="f-meth-sel" class="pick" aria-label="세부 결제수단"></select></div>
         </div>
-        <div class="frow"><div><span class="flabel">내용</span><input type="text" id="f-title" aria-label="내용" placeholder="예: 점심 김치찌개"></div></div>
-        <div class="frow"><div><span class="flabel">메모 (선택)</span><input type="text" id="f-memo" aria-label="메모" placeholder=""></div></div>
+        <div class="frow"><div><span class="flabel">내용</span><div class="chips sub suggest" id="f-title-sug"></div><input type="text" id="f-title" aria-label="내용" placeholder="예: 점심 김치찌개"></div></div>
+        <div class="frow"><div><span class="flabel">메모 (선택)</span><div class="chips sub suggest" id="f-memo-sug"></div><input type="text" id="f-memo" aria-label="메모" placeholder=""></div></div>
         <div class="check-row"><input type="checkbox" id="f-fixed"><label for="f-fixed">고정지출로 표시</label></div>
         <button class="btn-primary" id="f-save">저장</button>
   </div>
@@ -2039,6 +2041,34 @@ function restoreDraft(){
   if (d.from) selFrom = d.from;
   if (d.to) selTo = d.to;
 }
+/* 내용·메모를 쓰다 보면 전에 쓴 글이 칩으로 위에 뜬다 — 누르면 그대로 채운다.
+   앞부분이 같은 것 먼저, 그다음 자주 쓴 순 */
+function attachSuggest(field){
+  const inp = $('f-'+field), box = $('f-'+field+'-sug');
+  const hide = ()=>{ box.innerHTML=''; };
+  const show = ()=>{
+    const q = inp.value.trim().toLowerCase();
+    if (!q){ hide(); return; }
+    const cnt = new Map();
+    for (const e of state.entries){
+      const v = (e[field]||'').trim();
+      if (v && v.toLowerCase()!==q && v.toLowerCase().includes(q)) cnt.set(v, (cnt.get(v)||0)+1);
+    }
+    const top = [...cnt].sort((a,b)=> (b[0].toLowerCase().startsWith(q)-a[0].toLowerCase().startsWith(q)) || b[1]-a[1])
+                        .slice(0,5);
+    box.innerHTML = top.map(([v])=>'<button type="button" class="chip" data-v="'+esc(v)+'">'+esc(v)+'</button>').join('');
+  };
+  inp.addEventListener('input', show);
+  inp.addEventListener('blur', hide);
+  /* 칩을 누를 때 입력칸 포커스가 빠지며 칩이 먼저 사라지지 않도록 */
+  box.addEventListener('pointerdown', ev=>ev.preventDefault());
+  box.addEventListener('click', ev=>{
+    const b = ev.target.closest('button'); if (!b) return;
+    inp.value = b.dataset.v; hide();
+  });
+}
+attachSuggest('title');
+attachSuggest('memo');
 function clearForm(){
   $('f-amount').value=''; $('f-title').value=''; $('f-memo').value='';
   $('f-fixed').checked=false; $('f-date').value = selDate || todayStr();
